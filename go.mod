@@ -5,6 +5,7 @@ go 1.21
 require (
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
 	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
+	github.com/daeuniverse/softwind v0.0.0-20240125045015-94186ddaef35
 	github.com/gin-contrib/cors v1.5.0
 	github.com/gin-gonic/gin v1.9.1
 	github.com/go-gost/core v0.0.0-20240131151724-a06608ccafbf
@@ -19,6 +20,7 @@ require (
 	github.com/google/uuid v1.4.0
 	github.com/gorilla/websocket v1.5.1
 	github.com/miekg/dns v1.1.57
+	github.com/mzz2017/quic-go v0.0.0-20231230054300-5221ce9164a3
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pion/dtls/v2 v2.2.6
 	github.com/pires/go-proxyproto v0.7.0
@@ -54,7 +56,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0 // indirect
 	github.com/chenzhuoyu/base64x v0.0.0-20230717121745-296ad89f973d // indirect
 	github.com/chenzhuoyu/iasm v0.9.1 // indirect
-	github.com/coreos/go-iptables v0.5.0 // indirect
+	github.com/coreos/go-iptables v0.6.0 // indirect
 	github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f // indirect
 	github.com/fsnotify/fsnotify v1.7.0 // indirect
 	github.com/gabriel-vasile/mimetype v1.4.3 // indirect

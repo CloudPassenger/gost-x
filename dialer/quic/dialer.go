@@ -6,12 +6,13 @@ import (
 	"net"
 	"sync"
 
+	"github.com/daeuniverse/softwind/protocol/tuic/congestion"
 	"github.com/go-gost/core/dialer"
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
 	quic_util "github.com/go-gost/x/internal/util/quic"
 	"github.com/go-gost/x/registry"
-	"github.com/quic-go/quic-go"
+	"github.com/mzz2017/quic-go"
 )
 
 func init() {
@@ -110,7 +111,12 @@ func (d *quicDialer) initSession(ctx context.Context, addr net.Addr, conn net.Pa
 			quic.Version1,
 			quic.Version2,
 		},
-		MaxIncomingStreams: int64(d.md.maxStreams),
+		MaxIncomingStreams:             int64(d.md.maxStreams),
+		InitialStreamReceiveWindow:     uint64(d.md.initStreamReceiveWindow), // initStreamReceiveWindow
+		MaxStreamReceiveWindow:         uint64(d.md.maxStreamReceiveWindow),  // maxStreamReceiveWindow
+		InitialConnectionReceiveWindow: uint64(d.md.initConnReceiveWindow),   // initConnReceiveWindow
+		MaxConnectionReceiveWindow:     uint64(d.md.maxConnReceiveWindow),    // maxConnReceiveWindow
+		DisablePathMTUDiscovery:        d.md.DisablePathMTUDiscovery,         //disablePathMTUDiscovery
 	}
 
 	tlsCfg := d.options.TLSConfig
@@ -120,6 +126,13 @@ func (d *quicDialer) initSession(ctx context.Context, addr net.Addr, conn net.Pa
 	if err != nil {
 		return nil, err
 	}
+	// Hack: Hysteria!
+	if d.md.sendMbps > 0 {
+		congestion.UseBrutal(session, uint64(d.md.sendMbps*1024*1024/8))
+	} else {
+		congestion.UseBBR(session)
+	}
+
 	return &quicSession{session: session}, nil
 }
 

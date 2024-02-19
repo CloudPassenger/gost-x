@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 
+	"github.com/daeuniverse/softwind/protocol/tuic/congestion"
 	"github.com/go-gost/core/listener"
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
@@ -14,7 +15,7 @@ import (
 	metrics "github.com/go-gost/x/metrics/wrapper"
 	"github.com/go-gost/x/registry"
 	stats "github.com/go-gost/x/stats/wrapper"
-	"github.com/quic-go/quic-go"
+	"github.com/mzz2017/quic-go"
 )
 
 func init() {
@@ -78,7 +79,12 @@ func (l *quicListener) Init(md md.Metadata) (err error) {
 			quic.Version1,
 			quic.Version2,
 		},
-		MaxIncomingStreams: int64(l.md.maxStreams),
+		MaxIncomingStreams:             int64(l.md.maxStreams),
+		InitialStreamReceiveWindow:     uint64(l.md.initStreamReceiveWindow), // initStreamReceiveWindow
+		MaxStreamReceiveWindow:         uint64(l.md.maxStreamReceiveWindow),  // maxStreamReceiveWindow
+		InitialConnectionReceiveWindow: uint64(l.md.initConnReceiveWindow),   // initConnReceiveWindow
+		MaxConnectionReceiveWindow:     uint64(l.md.maxConnReceiveWindow),    // maxConnReceiveWindow
+		DisablePathMTUDiscovery:        l.md.DisablePathMTUDiscovery,         //disablePathMTUDiscovery
 	}
 
 	tlsCfg := l.options.TLSConfig
@@ -131,6 +137,12 @@ func (l *quicListener) listenLoop() {
 			l.errChan <- err
 			close(l.errChan)
 			return
+		}
+		// Hysteria!
+		if l.md.recvMbps > 0 {
+			congestion.UseBrutal(session, uint64(l.md.recvMbps*1024*1024/8))
+		} else {
+			congestion.UseBBR(session)
 		}
 		go l.mux(ctx, session)
 	}
