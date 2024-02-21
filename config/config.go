@@ -123,6 +123,26 @@ type TLSOptions struct {
 	CipherSuites []string `yaml:"cipherSuites,omitempty" json:"cipherSuites,omitempty"`
 }
 
+// Not Implemented yet
+type REALITYConfig struct {
+	// Server
+	Show        bool     `yaml:"show,omitempty" json:"show,omitempty"`
+	Dest        string   `yaml:"dest,omitempty" json:"dest,omitempty"`
+	Xver        uint64   `yaml:"xver,omitempty" json:"xver,omitempty"`
+	ServerNames []string `yaml:"serverNames,omitempty" json:"serverNames,omitempty"`
+	PrivateKey  string   `yaml:"privateKey,omitempty" json:"privateKey,omitempty"`
+	ShortIds    []string `yaml:"shortIds,omitempty" json:"shortIds,omitempty"`
+	// MinClientVersion string   `yaml:"minClientVersion,omitempty" json:"minClientVersion,omitempty"`
+	// MaxClientVersion string   `yaml:"maxClientVersion,omitempty" json:"maxClientVersion,omitempty"`
+	MaxTimeDiff uint64 `yaml:"maxTimeDiff,omitempty" json:"maxTimeDiff,omitempty"`
+
+	// Client
+	ServerName  string `yaml:"serverName,omitempty" json:"serverName,omitempty"`
+	PublicKey   string `yaml:"publicKey,omitempty" json:"publicKey,omitempty"`
+	ShortId     string `yaml:"shortId,omitempty" json:"shortId,omitempty"`
+	Fingerprint string `yaml:"fingerprint,omitempty" json:"fingerprint,omitempty"`
+}
+
 type PluginConfig struct {
 	Type    string        `json:"type"`
 	Addr    string        `json:"addr"`
@@ -325,6 +345,7 @@ type ListenerConfig struct {
 	Authers    []string          `yaml:",omitempty" json:"authers,omitempty"`
 	Auth       *AuthConfig       `yaml:",omitempty" json:"auth,omitempty"`
 	TLS        *TLSConfig        `yaml:",omitempty" json:"tls,omitempty"`
+	REALITY    *REALITYConfig    `yaml:",omitempty" json:"reality,omitempty"`
 	Metadata   map[string]any    `yaml:",omitempty" json:"metadata,omitempty"`
 }
 
@@ -337,6 +358,7 @@ type HandlerConfig struct {
 	Authers    []string          `yaml:",omitempty" json:"authers,omitempty"`
 	Auth       *AuthConfig       `yaml:",omitempty" json:"auth,omitempty"`
 	TLS        *TLSConfig        `yaml:",omitempty" json:"tls,omitempty"`
+	REALITY    *REALITYConfig    `yaml:",omitempty" json:"reality,omitempty"`
 	Limiter    string            `yaml:",omitempty" json:"limiter,omitempty"`
 	Observer   string            `yaml:",omitempty" json:"observer,omitempty"`
 	Metadata   map[string]any    `yaml:",omitempty" json:"metadata,omitempty"`
@@ -386,6 +408,7 @@ type DialerConfig struct {
 	Type     string         `json:"type"`
 	Auth     *AuthConfig    `yaml:",omitempty" json:"auth,omitempty"`
 	TLS      *TLSConfig     `yaml:",omitempty" json:"tls,omitempty"`
+	REALITY  *REALITYConfig `yaml:",omitempty" json:"reality,omitempty"`
 	Metadata map[string]any `yaml:",omitempty" json:"metadata,omitempty"`
 }
 
@@ -393,6 +416,7 @@ type ConnectorConfig struct {
 	Type     string         `json:"type"`
 	Auth     *AuthConfig    `yaml:",omitempty" json:"auth,omitempty"`
 	TLS      *TLSConfig     `yaml:",omitempty" json:"tls,omitempty"`
+	REALITY  *REALITYConfig `yaml:",omitempty" json:"reality,omitempty"`
 	Metadata map[string]any `yaml:",omitempty" json:"metadata,omitempty"`
 }
 

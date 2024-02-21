@@ -25,6 +25,7 @@ import (
 	logger_parser "github.com/go-gost/x/config/parsing/logger"
 	selector_parser "github.com/go-gost/x/config/parsing/selector"
 	xnet "github.com/go-gost/x/internal/net"
+	reality_util "github.com/go-gost/x/internal/util/reality"
 	tls_util "github.com/go-gost/x/internal/util/tls"
 	"github.com/go-gost/x/metadata"
 	"github.com/go-gost/x/registry"
@@ -69,7 +70,16 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		listenerLogger.Error(err)
 		return nil, err
 	}
-	if tlsConfig == nil {
+	realityCfg := cfg.Listener.REALITY
+	if realityCfg == nil {
+		realityCfg = &config.REALITYConfig{}
+	}
+	realityConfig, err := reality_util.LoadServerConfig(realityCfg)
+	if err != nil {
+		listenerLogger.Error(err)
+		return nil, err
+	}
+	if tlsConfig == nil && realityConfig == nil {
 		tlsConfig = parsing.DefaultTLSConfig().Clone()
 	}
 
@@ -125,6 +135,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		listener.AutherOption(auther),
 		listener.AuthOption(auth_parser.Info(cfg.Listener.Auth)),
 		listener.TLSConfigOption(tlsConfig),
+		listener.REALITYConfigOption(realityConfig),
 		listener.AdmissionOption(admission.AdmissionGroup(admissions...)),
 		listener.TrafficLimiterOption(registry.TrafficLimiterRegistry().Get(cfg.Limiter)),
 		listener.ConnLimiterOption(registry.ConnLimiterRegistry().Get(cfg.CLimiter)),
@@ -164,6 +175,17 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		tlsCfg = &config.TLSConfig{}
 	}
 	tlsConfig, err = tls_util.LoadServerConfig(tlsCfg)
+	/*
+		if err != nil {
+			handlerLogger.Error(err)
+			return nil, err
+		}
+		realityCfg = cfg.Handler.REALITY
+		if realityCfg == nil {
+			realityCfg = &config.REALITYConfig{}
+		}
+		realityConfig, err = reality_util.LoadServerConfig(realityCfg)
+	*/
 	if err != nil {
 		handlerLogger.Error(err)
 		return nil, err
@@ -223,6 +245,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 			handler.AuthOption(auth_parser.Info(cfg.Handler.Auth)),
 			handler.BypassOption(bypass.BypassGroup(bypass_parser.List(cfg.Bypass, cfg.Bypasses...)...)),
 			handler.TLSConfigOption(tlsConfig),
+			// handler.REALITYConfigOption(realityConfig),
 			handler.RateLimiterOption(registry.RateLimiterRegistry().Get(cfg.RLimiter)),
 			handler.TrafficLimiterOption(registry.TrafficLimiterRegistry().Get(cfg.Handler.Limiter)),
 			handler.ObserverOption(registry.ObserverRegistry().Get(cfg.Handler.Observer)),

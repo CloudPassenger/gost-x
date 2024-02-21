@@ -19,6 +19,7 @@ import (
 	"github.com/go-gost/x/config/parsing"
 	auth_parser "github.com/go-gost/x/config/parsing/auth"
 	bypass_parser "github.com/go-gost/x/config/parsing/bypass"
+	reality_util "github.com/go-gost/x/internal/util/reality"
 	tls_util "github.com/go-gost/x/internal/util/tls"
 	mdx "github.com/go-gost/x/metadata"
 	"github.com/go-gost/x/registry"
@@ -63,6 +64,14 @@ func ParseNode(hop string, cfg *config.NodeConfig, log logger.Logger) (*chain.No
 		nodeLogger.Error(err)
 		return nil, err
 	}
+	/*
+		realityCfg := cfg.Connector.REALITY
+		realityConfig, err := reality_util.LoadClientConfig(realityCfg)
+		if err != nil {
+			nodeLogger.Error(err)
+			return nil, err
+		}
+	*/
 
 	var nm metadata.Metadata
 	if cfg.Metadata != nil {
@@ -77,6 +86,7 @@ func ParseNode(hop string, cfg *config.NodeConfig, log logger.Logger) (*chain.No
 		cr = rf(
 			connector.AuthOption(auth_parser.Info(cfg.Connector.Auth)),
 			connector.TLSConfigOption(tlsConfig),
+			// connector.REALITYConfigOption(realityConfig),
 			connector.LoggerOption(connectorLogger),
 		)
 	} else {
@@ -103,6 +113,15 @@ func ParseNode(hop string, cfg *config.NodeConfig, log logger.Logger) (*chain.No
 		nodeLogger.Error(err)
 		return nil, err
 	}
+	realityClientCfg := cfg.Dialer.REALITY
+	if realityClientCfg == nil {
+		realityClientCfg = &config.REALITYConfig{}
+	}
+	realityClientConfig, err := reality_util.LoadClientConfig(realityClientCfg)
+	if err != nil {
+		nodeLogger.Error(err)
+		return nil, err
+	}
 
 	var ppv int
 	if nm != nil {
@@ -118,6 +137,7 @@ func ParseNode(hop string, cfg *config.NodeConfig, log logger.Logger) (*chain.No
 		d = rf(
 			dialer.AuthOption(auth_parser.Info(cfg.Dialer.Auth)),
 			dialer.TLSConfigOption(tlsConfig),
+			dialer.REALITYClientConfigOption(realityClientConfig),
 			dialer.LoggerOption(dialerLogger),
 			dialer.ProxyProtocolOption(ppv),
 		)
