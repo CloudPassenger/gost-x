@@ -30,10 +30,10 @@ func LoadServerConfig(config *config.REALITYConfig) (*reality.Config, error) {
 		return nil, fmt.Errorf("REALITY xver is invalid")
 	}
 	if len(config.ServerNames) == 0 {
-		return nil, fmt.Errorf("REALITY server names is empty")
+		return nil, fmt.Errorf("REALITY server names are empty")
 	}
 	if len(config.ShortIds) == 0 {
-		return nil, fmt.Errorf("REALITY short ids is empty")
+		return nil, fmt.Errorf("REALITY short ids are empty")
 	}
 
 	var privateKey []byte

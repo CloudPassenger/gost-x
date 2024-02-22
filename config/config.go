@@ -134,7 +134,7 @@ type REALITYConfig struct {
 	ShortIds    []string `yaml:"shortIds,omitempty" json:"shortIds,omitempty"`
 	// MinClientVersion string   `yaml:"minClientVersion,omitempty" json:"minClientVersion,omitempty"`
 	// MaxClientVersion string   `yaml:"maxClientVersion,omitempty" json:"maxClientVersion,omitempty"`
-	MaxTimeDiff uint64 `yaml:"maxTimeDiff,omitempty" json:"maxTimeDiff,omitempty"`
+	MaxTimeDiff time.Duration `yaml:"maxTimeDiff,omitempty" json:"maxTimeDiff,omitempty"`
 
 	// Client
 	ServerName  string `yaml:"serverName,omitempty" json:"serverName,omitempty"`
