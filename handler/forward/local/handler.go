@@ -24,6 +24,7 @@ import (
 	ctxvalue "github.com/go-gost/x/ctx"
 	xio "github.com/go-gost/x/internal/io"
 	xnet "github.com/go-gost/x/internal/net"
+	"github.com/go-gost/x/internal/net/proxyproto"
 	"github.com/go-gost/x/internal/util/forward"
 	tls_util "github.com/go-gost/x/internal/util/tls"
 	"github.com/go-gost/x/registry"
@@ -111,7 +112,7 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 	}
 
 	if protocol == forward.ProtoHTTP {
-		h.handleHTTP(ctx, rw, conn.RemoteAddr(), log)
+		h.handleHTTP(ctx, rw, conn.RemoteAddr(), conn.LocalAddr(), log)
 		return nil
 	}
 
@@ -172,6 +173,8 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 		marker.Reset()
 	}
 
+	cc = proxyproto.WrapClientConn(h.options.SendProxy, conn.RemoteAddr(), conn.LocalAddr(), cc)
+
 	t := time.Now()
 	log.Infof("%s <-> %s", conn.RemoteAddr(), target.Addr)
 	xnet.Transport(rw, cc)
@@ -182,7 +185,7 @@ func (h *forwardHandler) Handle(ctx context.Context, conn net.Conn, opts ...hand
 	return nil
 }
 
-func (h *forwardHandler) handleHTTP(ctx context.Context, rw io.ReadWriter, remoteAddr net.Addr, log logger.Logger) (err error) {
+func (h *forwardHandler) handleHTTP(ctx context.Context, rw io.ReadWriter, remoteAddr net.Addr, localAddr net.Addr, log logger.Logger) (err error) {
 	br := bufio.NewReader(rw)
 
 	var cc net.Conn
@@ -305,6 +308,8 @@ func (h *forwardHandler) handleHTTP(ctx context.Context, rw io.ReadWriter, remot
 				})
 				cc = tls.Client(cc, cfg)
 			}
+
+			cc = proxyproto.WrapClientConn(h.options.SendProxy, remoteAddr, localAddr, cc)
 
 			if err := req.Write(cc); err != nil {
 				cc.Close()

@@ -2,6 +2,7 @@ package parsing
 
 const (
 	MDKeyProxyProtocol = "proxyProtocol"
+	MDKeySendProxy     = "sendProxy"
 	MDKeyInterface     = "interface"
 	MDKeySoMark        = "so_mark"
 	MDKeyHash          = "hash"

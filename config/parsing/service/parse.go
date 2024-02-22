@@ -103,7 +103,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 		}
 	}
 
-	var ppv int
+	var ppv, sppv int
 	ifce := cfg.Interface
 	var preUp, preDown, postUp, postDown []string
 	var ignoreChain bool
@@ -111,6 +111,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 	if cfg.Metadata != nil {
 		md := metadata.NewMetadata(cfg.Metadata)
 		ppv = mdutil.GetInt(md, parsing.MDKeyProxyProtocol)
+		sppv = mdutil.GetInt(md, parsing.MDKeySendProxy)
 		if v := mdutil.GetString(md, parsing.MDKeyInterface); v != "" {
 			ifce = v
 		}
@@ -251,6 +252,7 @@ func ParseService(cfg *config.ServiceConfig) (service.Service, error) {
 			handler.ObserverOption(registry.ObserverRegistry().Get(cfg.Handler.Observer)),
 			handler.LoggerOption(handlerLogger),
 			handler.ServiceOption(cfg.Name),
+			handler.SendProxyOption(sppv),
 		)
 	} else {
 		return nil, fmt.Errorf("unregistered handler: %s", cfg.Handler.Type)
