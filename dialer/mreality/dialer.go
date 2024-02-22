@@ -1,4 +1,4 @@
-package reality
+package mreality
 
 import (
 	"bytes"
@@ -13,35 +13,39 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"io"
 	"math/rand"
 	"net"
 	"net/http"
 	"reflect"
+	"sync"
 	"time"
 	"unsafe"
-
-	utls "github.com/refraction-networking/utls"
-	"golang.org/x/crypto/chacha20poly1305"
-	"golang.org/x/crypto/hkdf"
-	"golang.org/x/net/http2"
 
 	"github.com/go-gost/core/dialer"
 	"github.com/go-gost/core/logger"
 	md "github.com/go-gost/core/metadata"
+	"github.com/go-gost/x/internal/util/mux"
 	"github.com/go-gost/x/registry"
+	utls "github.com/refraction-networking/utls"
+	"golang.org/x/crypto/chacha20poly1305"
+	"golang.org/x/crypto/hkdf"
+	"golang.org/x/net/http2"
 )
 
 func init() {
-	registry.DialerRegistry().Register("reality", NewDialer)
-	registry.DialerRegistry().Register("tlr", NewDialer)
+	registry.DialerRegistry().Register("mreality", NewDialer)
+	registry.DialerRegistry().Register("mtlr", NewDialer)
 }
 
-type realityDialer struct {
-	md      metadata
-	logger  logger.Logger
-	options dialer.Options
+type mrealityDialer struct {
+	sessions     map[string]*muxSession
+	sessionMutex sync.Mutex
+	logger       logger.Logger
+	md           metadata
+	options      dialer.Options
 }
 
 // Copy from xray
@@ -86,32 +90,96 @@ func NewDialer(opts ...dialer.Option) dialer.Dialer {
 		opt(&options)
 	}
 
-	return &realityDialer{
-		logger:  options.Logger,
-		options: options,
+	return &mrealityDialer{
+		sessions: make(map[string]*muxSession),
+		logger:   options.Logger,
+		options:  options,
 	}
 }
 
-func (d *realityDialer) Init(md md.Metadata) (err error) {
-	return d.parseMetadata(md)
+func (d *mrealityDialer) Init(md md.Metadata) (err error) {
+	if err = d.parseMetadata(md); err != nil {
+		return
+	}
+
+	return nil
 }
 
-func (d *realityDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOption) (net.Conn, error) {
-	var options dialer.DialOptions
-	for _, opt := range opts {
-		opt(&options)
+// Multiplex implements dialer.Multiplexer interface.
+func (d *mrealityDialer) Multiplex() bool {
+	return true
+}
+
+func (d *mrealityDialer) Dial(ctx context.Context, addr string, opts ...dialer.DialOption) (conn net.Conn, err error) {
+	d.sessionMutex.Lock()
+	defer d.sessionMutex.Unlock()
+
+	session, ok := d.sessions[addr]
+	if session != nil && session.IsClosed() {
+		delete(d.sessions, addr) // session is dead
+		ok = false
+	}
+	if !ok {
+		var options dialer.DialOptions
+		for _, opt := range opts {
+			opt(&options)
+		}
+
+		conn, err = options.NetDialer.Dial(ctx, "tcp", addr)
+		if err != nil {
+			return
+		}
+
+		session = &muxSession{conn: conn}
+		d.sessions[addr] = session
 	}
 
-	conn, err := options.NetDialer.Dial(ctx, "tcp", addr)
-	if err != nil {
-		d.logger.Error(err)
-	}
-	return conn, err
+	return session.conn, err
 }
 
 // Handshake implements dialer.Handshaker
-func (d *realityDialer) Handshake(ctx context.Context, conn net.Conn, options ...dialer.HandshakeOption) (net.Conn, error) {
-	// Now use tls original first
+func (d *mrealityDialer) Handshake(ctx context.Context, conn net.Conn, options ...dialer.HandshakeOption) (net.Conn, error) {
+	opts := &dialer.HandshakeOptions{}
+	for _, option := range options {
+		option(opts)
+	}
+
+	d.sessionMutex.Lock()
+	defer d.sessionMutex.Unlock()
+
+	if d.md.handshakeTimeout > 0 {
+		conn.SetDeadline(time.Now().Add(d.md.handshakeTimeout))
+		defer conn.SetDeadline(time.Time{})
+	}
+
+	session, ok := d.sessions[opts.Addr]
+	if session != nil && session.conn != conn {
+		conn.Close()
+		return nil, errors.New("mreality: unrecognized connection")
+	}
+
+	if !ok || session.session == nil {
+		s, err := d.initSession(ctx, conn)
+		if err != nil {
+			d.logger.Error(err)
+			conn.Close()
+			delete(d.sessions, opts.Addr)
+			return nil, err
+		}
+		session = s
+		d.sessions[opts.Addr] = session
+	}
+	cc, err := session.GetConn()
+	if err != nil {
+		session.Close()
+		delete(d.sessions, opts.Addr)
+		return nil, err
+	}
+
+	return cc, nil
+}
+
+func (d *mrealityDialer) initSession(ctx context.Context, conn net.Conn) (*muxSession, error) {
 
 	localAddr := conn.LocalAddr().String()
 	uVerifier := &uVerifier{
@@ -205,11 +273,6 @@ func (d *realityDialer) Handshake(ctx context.Context, conn net.Conn, options ..
 		}
 	}
 
-	if d.md.handshakeTimeout > 0 {
-		uVerifier.SetDeadline(time.Now().Add(d.md.handshakeTimeout))
-		defer uVerifier.SetDeadline(time.Time{})
-	}
-
 	if err := uVerifier.HandshakeContext(ctx); err != nil {
 		return nil, err
 	}
@@ -223,8 +286,22 @@ func (d *realityDialer) Handshake(ctx context.Context, conn net.Conn, options ..
 		return nil, fmt.Errorf("REALITY: uConn.Verified == false")
 	}
 
-	return uVerifier, nil
+	conn = uVerifier
 
+	/*
+		tlsConn := tls.Client(conn, d.options.TLSConfig)
+		if err := tlsConn.HandshakeContext(ctx); err != nil {
+			return nil, err
+		}
+		conn = tlsConn
+	*/
+
+	// stream multiplex
+	session, err := mux.ClientSession(conn, d.md.muxCfg)
+	if err != nil {
+		return nil, err
+	}
+	return &muxSession{conn: conn, session: session}, nil
 }
 
 func realityConnFallback(uConn net.Conn, serverName string, fingerprint utls.ClientHelloID) {
