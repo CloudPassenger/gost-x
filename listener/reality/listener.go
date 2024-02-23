@@ -22,6 +22,7 @@ import (
 
 func init() {
 	registry.ListenerRegistry().Register("reality", NewListener)
+	registry.ListenerRegistry().Register("tlr", NewListener)
 }
 
 type realityListener struct {
