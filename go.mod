@@ -2,7 +2,7 @@ module github.com/go-gost/x
 
 go 1.21
 
-replace github.com/go-gost/core => ../core
+replace github.com/go-gost/core => github.com/CloudPassenger/gost-core v0.0.0-20240223151125-595ebd99442f
 
 require (
 	github.com/alecthomas/units v0.0.0-20211218093645-b94a6e3cc137
